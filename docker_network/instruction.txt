@@ -1,0 +1,88 @@
+// build the httpd image 
+docker build . -t nhttpd 
+
+// create the container 
+docker run --name s1 -d  nhttpd
+docker run --name s2 -d  nhttpd
+
+
+// We can ping a container from another container using its IP address
+// Example: ping container with IP 172.17.0.2 from container `s1`
+docker exec -it s1 /bin/bash -c "ping 172.17.0.2"
+
+// But we cannot ping containers using their hostnames directly (like `ping s2`) 
+// unless they are in the same user-defined Docker network
+// Example: This will fail in the default 'bridge' network
+docker exec -it s1 /bin/bash -c "ping s2"
+
+// Reason:
+// In the default bridge network, Docker does not automatically resolve container names to IPs
+// It lacks DNS resolution for hostnames like `s2`
+
+// Solution:
+// Use a user-defined bridge network (like `backendnet`), which supports hostname-based DNS resolution
+
+// Example fix:
+docker network create backendnet
+docker network inspect backendnet
+
+docker network connect backendnet s1
+docker network connect backendnet s2
+
+docker network inspect backendnet
+
+
+docker inspect s1
+// it belongs to two newtorks (backendnet , bridge), we don't want this sometimes
+
+docker network disconnect bridge s1
+docker network disconnect bridge s2
+
+
+// Now  you can use hostnames
+
+curl http://s1
+curl http://s2
+ping s1
+ping s2
+
+// create another network
+docker network create frontend  -subnet 10.0.1.0/24
+docker network disconnect backend s2
+docker network connect frontend s2
+
+// Go to s1 container 
+ping s2
+// now again s1 not found s2  bcz both belong to different networks:
+
+// we need someone who knows, we need router 
+docker run --name gw --network backend -d nhttpd
+docker network connect frontend gw
+
+// Go to the gw 
+ping s1
+ping s2 
+
+docker stop s1
+docker stop s2
+docker rm s1 s2
+
+docker run --name s1 --network backend --cap-add=NET_ADMIN -d nhttpd
+docker run --name s2 --network frontend --cap-add=NET_ADMIN -d nhttpd
+// --cap-add=NET_ADMIN is used to get access to add ip route 
+
+
+docker exec -it s1 bash
+hostname -i
+exit
+
+
+docker exec -it s2 bash
+hostname -i
+ip route add 10.0.0.0/24 via 10.0.1.3
+
+docker exec -it s1 bash
+ip route add 10.0.1.0/24 via 10.0.0.3
+ping s2 using its ip: ping 10.0.1.2
+traceroute 10.0.1.2
+
