@@ -1,0 +1,13 @@
+// nginx with path html
+
+1) docker run --name nginx --hostname ng1 -p 80:80 -v  C:\Users\PMLS\OneDrive\Desktop\backend\nginx\nginx-container\html:/usr/share/nginx/html -d nginx
+
+2) inspect container
+docker inspect nginx
+
+3) Go to browser request on http://localhost:80, it will return your html file 
+
+
+// vanilla nginx
+docker run --name nginx --hostname ng1 -p 80:80 -d nginx
+

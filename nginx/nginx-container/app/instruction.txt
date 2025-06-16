@@ -1,0 +1,58 @@
+// Build a Docker image named 'nodeapp' from the Dockerfile in the current directory
+
+docker build . -t nodeapp
+
+// Run three containers from the 'nodeapp' image with different hostnames and names, all in detached mode (-d)
+
+docker run --hostname nodeapp1 --name nodeapp1 -d nodeapp                                   # First instance of nodeapp
+docker run --hostname nodeapp2 --name nodeapp2 -d nodeapp                                   # Second instance of nodeapp
+docker run --hostname nodeapp3 --name nodeapp3 -d nodeapp                                   # Third instance of nodeapp
+
+// Run the first Nginx container with a custom configuration 
+docker run --hostname ng1 --name nginx -p 80:8080 -v  C:\Users\PMLS\OneDrive\Desktop\backend\nginx\nginx-container/nginx.conf:/etc/nginx/nginx.conf -d nginx
+
+
+docker run \
+  --hostname ng1 \                                                              # Set the hostname inside the container to 'ng1'
+  --name nginx \                                                                # Name the container 'nginx'
+  -p 80:8080 \                                                                  # Map host port 80 to container port 8080
+  -v C:\Users\PMLS\OneDrive\Desktop\backend\nginx\nginx-container/nginx.conf:/etc/nginx/nginx.conf \  # Mount custom nginx.conf
+  -d nginx                                                                      # Run the container in detached mode using the nginx image
+
+
+
+// Create a custom Docker network named 'backendnet'
+
+docker network create backendnet
+
+// Connect all 'nodeapp' containers and nginx container to the 'backendnet' network
+docker network connect backendnet nodeapp1                                      # Connect nodeapp1 to backendnet
+docker network connect backendnet nodeapp2                                      # Connect nodeapp2 to backendnet
+docker network connect backendnet nodeapp3                                      # Connect nodeapp3 to backendnet
+docker network connect backendnet nginx                                         # Connect nginx (ng1) to backendnet
+
+
+
+
+
+
+// Run a second Nginx container with the same configuration file but expose it on a different port
+docker run --hostname ng2 --name ng2 -p 81:8080 -v  C:\Users\PMLS\OneDrive\Desktop\backend\nginx\nginx-container/nginx.conf:/etc/nginx/nginx.conf -d nginx
+
+
+docker run \
+  --hostname ng2 \                                                              # Set hostname to 'ng2'
+  --name ng2 \                                                                  # Name the container 'ng2'
+  -p 81:8080 \                                                                  # Map host port 81 to container port 8080
+  -v C:\Users\PMLS\OneDrive\Desktop\backend\nginx\nginx-container/nginx.conf:/etc/nginx/nginx.conf \  # Use same custom config
+  -d nginx                                                                      # Run in detached mode using nginx image
+
+// Connect the second Nginx container to the 'backendnet' network
+docker network connect backendnet ng2
+
+
+//use ip tables to load balance connections to port 80/81 from 82 this is all outside docker, ip address is 192.168.254.10 
+
+sudo iptables --table nat --append PREROUTING --destination 192.168.254.10 --protocol tcp --dport 82 --match statistic --mode nth --every 3 --packet 0 --jump DNAT --to-destination 192.168.254.10:80
+
+sudo iptables --table nat --append PREROUTING --destination 192.168.254.10 --protocol tcp --dport 82 --match statistic --mode nth --every 2 --packet 0 --jump DNAT --to-destination 192.168.254.10:81
